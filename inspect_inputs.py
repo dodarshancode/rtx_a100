@@ -323,6 +323,32 @@ def inspect_pdf(path):
     for (tid, title), pgs in list(uniq.items())[:120]:
         print(f"  {tid:6} p{pgs[0]:>4}-{pgs[-1]:<4} ({len(pgs)} hits) {title[:70]}")
 
+    # ---- section index: every occurrence, with page RANGES (start of this
+    # header to start of the next header anywhere in the doc), so repeated
+    # T-numbers under different titles are visible as separate occurrences
+    # rather than merged. This is what feeds the routing/mapping stage.
+    occurrences = []  # (tid, title, first_page_seen)
+    seen_starts = set()
+    for tid, title, pg in headers:
+        key = (tid, title, pg)
+        if key in seen_starts:
+            continue
+        seen_starts.add(key)
+        occurrences.append((tid, title, pg))
+    occurrences.sort(key=lambda x: x[2])
+    print(f"\nsection occurrences in reading order: {len(occurrences)} "
+          f"(a T-number appearing here more than once under different pages/titles "
+          f"means the report repeats the test sequence, e.g. per mode of protection)")
+    for i, (tid, title, start) in enumerate(occurrences):
+        end = occurrences[i + 1][2] - 1 if i + 1 < len(occurrences) else doc.page_count
+        print(f"  #{i+1:3} {tid:6} p{start:>4}-{end:<4} {title[:70]}")
+
+    repeat_counts = Counter(tid for tid, _, _ in occurrences)
+    repeats = {tid: n for tid, n in repeat_counts.items() if n > 1}
+    if repeats:
+        print(f"\nT-numbers occurring more than once: {len(repeats)} "
+              f"(e.g. {dict(list(repeats.items())[:10])})")
+
 
 def main():
     global MASK
