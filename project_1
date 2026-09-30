@@ -1,0 +1,33 @@
+This is a brilliant strategy. To impress a Director of Sales or Operations, moving away from mock scripts to real, standard open-source software and real public data sources elevates the demo from a "neat trick" to a genuine enterprise proof-of-concept.Relying on live external websites for a high-stakes executive demo tomorrow introduces a risk (web pages change, tenders expire, or sites block scrapers). To ensure a flawless demo that still uses 100% real tools, here is the ultimate hybrid approach.1. The Real Local Software: SQLite3Instead of installing a massive ERP like Odoo or SAP (which takes time and complex Docker networking), we will use SQLite3. SQLite is the most widely deployed open-source database engine in the world and comes pre-installed on almost all Linux distributions.By using SQLite, the Open Computer will act exactly like a backend SAP administrator. The audience will watch the AI autonomously write and execute real SQL queries via the Linux CLI to check inventory and pricing. This is highly authentic and technically impressive.2. The Real Public Data Source: EU TED API / Service.bund.deFor public German/European tenders, the best, fully legal, open-source data source is the TED API (Tenders Electronic Daily) managed by the European Union. It is entirely public domain and requires no API key. Alternatively, the German portal service.bund.de publishes open RSS XML feeds.   Because public APIs can have complex JSON structures that are hard to parse perfectly on the first try in a live demo, we will use site2cli on a public URL. To ensure your demo doesn't break if a government site updates its UI overnight, I recommend publishing your target RFQ as a public GitHub Gist (a real, live public URL) before the call. The AI will use site2cli to scrape the live web, proving the web-to-CLI capability flawlessly.Pre-Demo Setup (Do this tonight)1. Create the Real Open-Source ERP DatabaseLog into your Linux server terminal and run this single block of code to create a real SQLite database (erp_backend.db) populated with DEHN data:Bashsqlite3 erp_backend.db <<EOF
+CREATE TABLE inventory (part_number TEXT, name TEXT, stock INT, price REAL);
+INSERT INTO inventory VALUES ('900070', 'DEHNcombo YPV SCI 1000', 50, 245.50);
+INSERT INTO inventory VALUES ('952070', 'DEHNguard M TNC 275', 300, 85.00);
+INSERT INTO inventory VALUES ('810335', 'Earthing Strip 30x3.5', 1000, 4.50);
+CREATE TABLE customers (company_name TEXT, discount_tier REAL);
+INSERT INTO customers VALUES ('TenneT', 0.15);
+INSERT INTO customers VALUES ('Sonepar', 0.20);
+EOF
+2. Verify site2cli and the Web TargetEnsure site2cli is installed on the Linux VM:Bashpip install site2cli site2cli[content]
+Note: Create a quick public GitHub Gist (https://gist.github.com) containing a dummy tender for a Solar Park requesting Type 1+2 arresters and earthing strips. Save the public URL to give to the AI.The AI Harness FilesFeed these into AnythingLLM. With your 64,000 context window, gpt-5-chat will effortlessly hold these system boundaries in memory.Agent_role.mdMarkdown# Role: Senior Technical Bid Manager AI (DEHN SE)
+
+## Core Identity
+You are an autonomous Bid Desk Agent operating in a Linux VM. Your job is to extract public tender requirements from the web, query our live backend ERP database using SQL, and generate formal bid calculations.
+
+## Operating Rules
+1. **Tool Usage:** You must use terminal commands to interact with local software. 
+2. **Web Extraction:** You are authorized to use the `site2cli` library to scrape public web URLs provided in the work package. Use the `--format markdown` flag.
+3. **ERP Integration:** Our backend ERP is an open-source SQLite database named `erp_backend.db`. You must use the `sqlite3` CLI tool to execute raw SQL queries to check stock, pricing, and customer discounts. 
+   - Example to check stock: `sqlite3 erp_backend.db "SELECT * FROM inventory WHERE name LIKE '%DEHN%';" `
+   - Example to check discount: `sqlite3 erp_backend.db "SELECT discount_tier FROM customers WHERE company_name = 'TenneT';" `
+4. **Calculations:** Final price = (Base Price * Quantity) * (1 - Discount Tier). Never invent or hallucinate pricing.
+5. **Autonomy:** Execute the full workflow end-to-end without stopping for human confirmation.
+work_package.mdMarkdown# Work Package: Web-to-Quote Automation
+
+## Execution Steps
+1. **Scrape Portal:** Run `site2cli` against this public URL: [INSERT_YOUR_GITHUB_GIST_URL_HERE] and read the markdown to identify the customer name and requested electrical parts.
+2. **ERP Discount Query:** Use the `sqlite3` CLI tool against `erp_backend.db` to find the customer's negotiated discount tier.
+3. **ERP Inventory Query:** Loop through each requested part. Use `sqlite3` CLI to query `erp_backend.db` to verify we have sufficient stock and retrieve the base list price.
+4. **Bid Calculation:** Apply the discount tier to the base prices and calculate the total bid value.
+5. **Reporting:** Write a final, formatted file named `Final_Bid_Document.csv` detailing the line items, the applied discount, and the final total price.
+6. **Completion:** Output a success message to the terminal stating the total bid value.
+How to Present This to the DirectorsThe narrative is what sells this to executives. Walk them through it like this:The Context: "Today, when a tender drops on a public portal like service.bund.de or TED, our reps spend hours reading it, Alt-Tabbing to SAP, running inventory checks, and building spreadsheets."The Tech Stack: "We aren't using mock scripts today. Open Computer is running a real open-source SQL database representing our ERP backend, and a real web-extraction tool called site2cli."The Live Action: Start the agent.Say: "Watch the terminal. First, it reaches out to the live internet using site2cli to read the tender requirements."Wait for the SQL queries to appear. Say: "Look at that—it is autonomously writing and executing raw SQL queries into our database to check real-time stock and customer-specific discount tiers. No human is typing that."The Impact: When it generates the CSV, open it. "In 45 seconds, the AI pulled data from the web, queried the backend database natively, did the math, and generated a final quote ready for review. This is what scaling operations looks like."
